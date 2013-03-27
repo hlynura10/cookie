@@ -1,4 +1,4 @@
-TEAM = einskislidid
+TEAM = cookie
 VERSION = 1
 HANDINDIR = /labs/proxylab/handin
 
