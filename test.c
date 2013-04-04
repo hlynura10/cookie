@@ -2,77 +2,90 @@
 
 int main(int argc, char **argv)
 {
-	/*int port = atoi(argv[1]);
-	int listenfd = open_listenfd(port);
-	printf("port %d", port);
-
-	char *node = "www.ru.is";
-	char *service = "http";
-	struct addrinfo *servinfo;
+	int port = atoi(argv[1]);
+	int new_fd;
+	struct sockaddr_in clientaddr;
+	socklen_t clientlen;
+	int result;
+	char *node = "www.msn.com";
+	char *serv = "http";
 	struct addrinfo hints;
+	struct addrinfo *servinfo;
+
+	//prepare hints
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-
-	int status = getaddrinfo(NULL, "3490", &hints, &servinfo);
-	if(status != 0)
+	
+	//wait for connection
+	int listenfd = open_listenfd(port);
+	//accept incoming connection
+	new_fd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+	
+	//TODO CLIENT
+	//does all kinds of good stuff for us
+	result = getaddrinfo(node, serv, &hints, &servinfo);
+	//
+	if(result != 0)
 	{
-		printf("error");
+		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(result));
 		exit(1);
 	}
-	else
+	printf("result = %d\n", result);
+	int sockfd;
+	struct addrinfo *p;
+	for(p = servinfo; p!= NULL; p = p->ai_next)
 	{
-		printf("OKAY %d\n", status);
-	}*/
-	struct addrinfo hints, *res, *p;
-	int status;
-	char ipstr[INET6_ADDRSTRLEN];
-	
-	if(argc != 2)
+		sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if(sockfd == -1)
+		{
+			perror("socket");
+			continue;
+		}
+		if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+		{
+			close(sockfd);
+			perror("connect");
+			continue;
+		}
+		break;
+	}
+	//we are not connected
+	if(p == NULL)
 	{
-		fprintf(stderr, "usage: showip hostname\n");
+		fprintf(stderr, "failed to connect\n");
+		exit(2);
+	}
+	//we are connected and we want to read from the website
+	//send request to server
+	char *message = "GET /?st=1 HTTP/1.1\r\nHost: www.msn.com\r\n\r\n";
+	int sendResult = send(sockfd, message, strlen(message), 0);
+	if(sendResult < 0)
+	{
+		printf("SEND FAAAAAILED\n");
 		return 1;
 	}
+	printf("Data Send\n");
 	
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = inet_addr("130.208.243.71");
+	//receive data from server
+	char data[108222];
+	int recvResult = recv(sockfd, data, 108222, 0);
+	if(recvResult < 0)
+	{
+		printf("recv FAAAILED!!shift+1\n");
+	}
+	printf("Data Received\n%s", data);
+
+	//free the servinfo
+	freeaddrinfo(servinfo);
+	//TODO END CLIENT
 	
-	if((status = getaddrinfo(argv[1], "11122", &hints, &res)) != 0)
-	{
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-		return 2;
-	}
+	//TODO SEND to new_fd
+	//TODO END SEND to new_fd
+	
+	//close connection
+	close(new_fd);
 
-	printf("IP addresses for %s:\n\n", argv[1]);
-
-	for(p = res; p != NULL; p = p->ai_next)
-	{
-		void *addr;
-		char *ipver;
-		if(p->ai_family == AF_INET)
-		{
-			struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-			addr = &(ipv4->sin_addr);
-			ipver = "IPv4";
-		}
-		else
-		{
-			struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-			addr = &(ipv6->sin6_addr);
-			ipver = "IPv6";
-		}
-
-		inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
-		printf("\t%s: %s\n", ipver, ipstr);
-	}
-
-
-	int s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	printf("s = %d", s);
-	bind(s, res->ai_addr, res->ai_addrlen);
-	freeaddrinfo(res);
 	return 0;
 }
