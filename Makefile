@@ -7,10 +7,13 @@ CFLAGS = -Wall -g
 LDFLAGS = -pthread
 
 OBJS = proxy.o csapp.o
+TEST = test.o csapp.o
 
 all: proxy
 
 proxy: $(OBJS)
+
+test: $(TEST)
 
 csapp.o: csapp.c
 	$(CC) $(CFLAGS) -c csapp.c
